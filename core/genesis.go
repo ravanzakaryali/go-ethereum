@@ -673,6 +673,35 @@ func DefaultHoodiGenesisBlock() *Genesis {
 	}
 }
 
+// DefaultGurabaGenesisBlock returns the Guraba network genesis block.
+func DefaultGurabaGenesisBlock() *Genesis {
+	// Clique ExtraData formatı: 32 byte vanity + validator ünvanları + 65 byte seal
+	// Hələlik sıfır — node işə salınanda validator ünvanı əlavə olunacaq
+	extraData := make([]byte, 32+20+65)
+
+	return &Genesis{
+		Config:     params.GurabaChainConfig,
+		Nonce:      0,
+		Timestamp:  1739145600, // 2025-02-10 00:00:00 UTC
+		ExtraData:  extraData,
+		GasLimit:   0x1c9c380, // 30,000,000 — hər blokda 30M gas limit
+		Difficulty: big.NewInt(1),
+		BaseFee:    big.NewInt(params.InitialBaseFee), // 1 Gwei başlanğıc base fee
+		Alloc: map[common.Address]types.Account{
+			// Precompiled contract-lar — EVM-in düzgün işləməsi üçün lazımdır
+			common.BytesToAddress([]byte{0x01}): {Balance: big.NewInt(1)}, // ECRecover
+			common.BytesToAddress([]byte{0x02}): {Balance: big.NewInt(1)}, // SHA256
+			common.BytesToAddress([]byte{0x03}): {Balance: big.NewInt(1)}, // RIPEMD160
+			common.BytesToAddress([]byte{0x04}): {Balance: big.NewInt(1)}, // Identity
+			common.BytesToAddress([]byte{0x05}): {Balance: big.NewInt(1)}, // ModExp
+			common.BytesToAddress([]byte{0x06}): {Balance: big.NewInt(1)}, // ECAdd
+			common.BytesToAddress([]byte{0x07}): {Balance: big.NewInt(1)}, // ECScalarMul
+			common.BytesToAddress([]byte{0x08}): {Balance: big.NewInt(1)}, // ECPairing
+			common.BytesToAddress([]byte{0x09}): {Balance: big.NewInt(1)}, // BLAKE2b
+		},
+	}
+}
+
 // DeveloperGenesisBlock returns the 'geth --dev' genesis block.
 func DeveloperGenesisBlock(gasLimit uint64, faucet *common.Address) *Genesis {
 	// Override the default period to the user requested one
