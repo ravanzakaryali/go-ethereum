@@ -183,6 +183,7 @@ var (
 		},
 	}
 	// GurabaChainConfig contains the chain parameters to run a node on the Guraba network.
+	// PoS from genesis: no Clique/Ethash, Beacon Chain (Prysm) handles consensus.
 	GurabaChainConfig = &ChainConfig{
 		ChainID:                 big.NewInt(5502),
 		HomesteadBlock:          big.NewInt(0),
@@ -200,8 +201,17 @@ var (
 		LondonBlock:             big.NewInt(0),
 		ArrowGlacierBlock:       nil,
 		GrayGlacierBlock:        nil,
-		TerminalTotalDifficulty: nil,
-		Clique:                  &CliqueConfig{Period: 15, Epoch: 30000},
+		TerminalTotalDifficulty: big.NewInt(0),
+		ShanghaiTime:            newUint64(0),
+		CancunTime:              newUint64(0),
+		PragueTime:              newUint64(0),
+		OsakaTime:               newUint64(0),
+		DepositContractAddress:  common.HexToAddress("0x4242424242424242424242424242424242424242"),
+		BlobScheduleConfig: &BlobScheduleConfig{
+			Cancun: DefaultCancunBlobConfig,
+			Prague: DefaultPragueBlobConfig,
+			Osaka:  DefaultOsakaBlobConfig,
+		},
 	}
 	// AllEthashProtocolChanges contains every protocol change (EIPs) introduced
 	// and accepted by the Ethereum core developers into the Ethash consensus.

@@ -674,21 +674,18 @@ func DefaultHoodiGenesisBlock() *Genesis {
 }
 
 // DefaultGurabaGenesisBlock returns the Guraba network genesis block.
+// PoS from genesis: Beacon Chain (Prysm) handles consensus, no Clique.
 func DefaultGurabaGenesisBlock() *Genesis {
-	// Clique ExtraData formatı: 32 byte vanity + validator ünvanları + 65 byte seal
-	// Hələlik sıfır — node işə salınanda validator ünvanı əlavə olunacaq
-	extraData := make([]byte, 32+20+65)
-
 	return &Genesis{
 		Config:     params.GurabaChainConfig,
 		Nonce:      0,
-		Timestamp:  1739145600, // 2025-02-10 00:00:00 UTC
-		ExtraData:  extraData,
-		GasLimit:   0x1c9c380, // 30,000,000 — hər blokda 30M gas limit
-		Difficulty: big.NewInt(1),
-		BaseFee:    big.NewInt(params.InitialBaseFee), // 1 Gwei başlanğıc base fee
+		Timestamp:  1770770747, // 2026-02-10 (genesis time)
+		ExtraData:  make([]byte, 32), // 32 byte vanity only (no Clique signer data)
+		GasLimit:   0x1c9c380,        // 30,000,000
+		Difficulty: big.NewInt(0),     // PoS: difficulty is always 0
+		BaseFee:    big.NewInt(params.InitialBaseFee),
 		Alloc: map[common.Address]types.Account{
-			// Precompiled contract-lar — EVM-in düzgün işləməsi üçün lazımdır
+			// Precompiled contract-lar
 			common.BytesToAddress([]byte{0x01}): {Balance: big.NewInt(1)}, // ECRecover
 			common.BytesToAddress([]byte{0x02}): {Balance: big.NewInt(1)}, // SHA256
 			common.BytesToAddress([]byte{0x03}): {Balance: big.NewInt(1)}, // RIPEMD160
@@ -698,6 +695,55 @@ func DefaultGurabaGenesisBlock() *Genesis {
 			common.BytesToAddress([]byte{0x07}): {Balance: big.NewInt(1)}, // ECScalarMul
 			common.BytesToAddress([]byte{0x08}): {Balance: big.NewInt(1)}, // ECPairing
 			common.BytesToAddress([]byte{0x09}): {Balance: big.NewInt(1)}, // BLAKE2b
+			// System contract-lar (PoS üçün lazımdır)
+			params.BeaconRootsAddress:        {Nonce: 1, Code: params.BeaconRootsCode, Balance: common.Big0},
+			params.HistoryStorageAddress:     {Nonce: 1, Code: params.HistoryStorageCode, Balance: common.Big0},
+			params.WithdrawalQueueAddress:    {Nonce: 1, Code: params.WithdrawalQueueCode, Balance: common.Big0},
+			params.ConsolidationQueueAddress: {Nonce: 1, Code: params.ConsolidationQueueCode, Balance: common.Big0},
+			// Deposit contract (EIP-6110) — staking üçün
+			common.HexToAddress("0x4242424242424242424242424242424242424242"): {
+				Nonce:   1,
+				Code:    params.DepositContractCode,
+				Balance: common.Big0,
+				Storage: map[common.Hash]common.Hash{
+					// zero_hashes[1..31] — deposit Merkle tree üçün pre-computed SHA256 dəyərlər
+					common.HexToHash("0x22"): common.HexToHash("0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"),
+					common.HexToHash("0x23"): common.HexToHash("0xdb56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71"),
+					common.HexToHash("0x24"): common.HexToHash("0xc78009fdf07fc56a11f122370658a353aaa542ed63e44c4bc15ff4cd105ab33c"),
+					common.HexToHash("0x25"): common.HexToHash("0x536d98837f2dd165a55d5eeae91485954472d56f246df256bf3cae19352a123c"),
+					common.HexToHash("0x26"): common.HexToHash("0x9efde052aa15429fae05bad4d0b1d7c64da64d03d7a1854a588c2cb8430c0d30"),
+					common.HexToHash("0x27"): common.HexToHash("0xd88ddfeed400a8755596b21942c1497e114c302e6118290f91e6772976041fa1"),
+					common.HexToHash("0x28"): common.HexToHash("0x87eb0ddba57e35f6d286673802a4af5975e22506c7cf4c64bb6be5ee11527f2c"),
+					common.HexToHash("0x29"): common.HexToHash("0x26846476fd5fc54a5d43385167c95144f2643f533cc85bb9d16b782f8d7db193"),
+					common.HexToHash("0x2a"): common.HexToHash("0x506d86582d252405b840018792cad2bf1259f1ef5aa5f887e13cb2f0094f51e1"),
+					common.HexToHash("0x2b"): common.HexToHash("0xffff0ad7e659772f9534c195c815efc4014ef1e1daed4404c06385d11192e92b"),
+					common.HexToHash("0x2c"): common.HexToHash("0x6cf04127db05441cd833107a52be852868890e4317e6a02ab47683aa75964220"),
+					common.HexToHash("0x2d"): common.HexToHash("0xb7d05f875f140027ef5118a2247bbb84ce8f2f0f1123623085daf7960c329f5f"),
+					common.HexToHash("0x2e"): common.HexToHash("0xdf6af5f5bbdb6be9ef8aa618e4bf8073960867171e29676f8b284dea6a08a85e"),
+					common.HexToHash("0x2f"): common.HexToHash("0xb58d900f5e182e3c50ef74969ea16c7726c549757cc23523c369587da7293784"),
+					common.HexToHash("0x30"): common.HexToHash("0xd49a7502ffcfb0340b1d7885688500ca308161a7f96b62df9d083b71fcc8f2bb"),
+					common.HexToHash("0x31"): common.HexToHash("0x8fe6b1689256c0d385f42f5bbe2027a22c1996e110ba97c171d3e5948de92beb"),
+					common.HexToHash("0x32"): common.HexToHash("0x8d0d63c39ebade8509e0ae3c9c3876fb5fa112be18f905ecacfecb92057603ab"),
+					common.HexToHash("0x33"): common.HexToHash("0x95eec8b2e541cad4e91de38385f2e046619f54496c2382cb6cacd5b98c26f5a4"),
+					common.HexToHash("0x34"): common.HexToHash("0xf893e908917775b62bff23294dbbe3a1cd8e6cc1c35b4801887b646a6f81f17f"),
+					common.HexToHash("0x35"): common.HexToHash("0xcddba7b592e3133393c16194fac7431abf2f5485ed711db282183c819e08ebaa"),
+					common.HexToHash("0x36"): common.HexToHash("0x8a8d7fe3af8caa085a7639a832001457dfb9128a8061142ad0335629ff23ff9c"),
+					common.HexToHash("0x37"): common.HexToHash("0xfeb3c337d7a51a6fbf00b9e34c52e1c9195c969bd4e7a0bfd51d5c5bed9c1167"),
+					common.HexToHash("0x38"): common.HexToHash("0xe71f0aa83cc32edfbefa9f4d3e0174ca85182eec9f3a09f6a6c0df6377a510d7"),
+					common.HexToHash("0x39"): common.HexToHash("0x31206fa80a50bb6abe29085058f16212212a60eec8f049fecb92d8c8e0a84bc0"),
+					common.HexToHash("0x3a"): common.HexToHash("0x21352bfecbeddde993839f614c3dac0a3ee37543f9b412b16199dc158e23b544"),
+					common.HexToHash("0x3b"): common.HexToHash("0x619e312724bb6d7c3153ed9de791d764a366b389af13c58bf8a8d90481a46765"),
+					common.HexToHash("0x3c"): common.HexToHash("0x7cdd2986268250628d0c10e385c58c6191e6fbe05191bcc04f133f2cea72c1c4"),
+					common.HexToHash("0x3d"): common.HexToHash("0x848930bd7ba8cac54661072113fb278869e07bb8587f91392933374d017bcbe1"),
+					common.HexToHash("0x3e"): common.HexToHash("0x8869ff2c22b28cc10510d9853292803328be4fb0e80495e8bb8d271f5b889636"),
+					common.HexToHash("0x3f"): common.HexToHash("0xb5fe28e79f1b850f8658246ce9b6a1e7b49fc06db7143e8fe0b4f2b0c5523a5c"),
+					common.HexToHash("0x40"): common.HexToHash("0x985e929f70af28d0bdd1a90a808f977f597c7c778c489e98d3bd8910d31ac0f7"),
+				},
+			},
+			// Əsas hesab — 100,000,000 Guraba coin (100M * 10^18 wei)
+			common.HexToAddress("0x696C2FA6ed73bE9E9872f8cA96b67d6092727698"): {
+				Balance: new(big.Int).Mul(big.NewInt(100_000_000), big.NewInt(1e18)),
+			},
 		},
 	}
 }

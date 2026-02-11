@@ -38,6 +38,11 @@ import (
 var (
 	beaconDifficulty = common.Big0          // The default block difficulty in the beacon consensus
 	beaconNonce      = types.EncodeNonce(0) // The default block nonce in the beacon consensus
+
+	// Guraba block reward constants
+	GurabaChainID         = big.NewInt(5502)
+	GurabaBlockReward     = uint256.NewInt(2_000_000_000_000_000_000) // 2 GRB per block
+	GurabaHalvingInterval = uint64(7_500_000)                         // ~2.85 years at 12s blocks
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -325,11 +330,33 @@ func (beacon *Beacon) Prepare(chain consensus.ChainHeaderReader, header *types.H
 	return nil
 }
 
+// calculateGurabaReward returns the block reward for the given block number
+// with halving: 2 GRB initially, halved every 7,500,000 blocks.
+// Returns nil if reward has been halved to zero (era >= 64) or for genesis block.
+func calculateGurabaReward(blockNumber uint64) *uint256.Int {
+	if blockNumber == 0 {
+		return nil
+	}
+	era := blockNumber / GurabaHalvingInterval
+	if era >= 64 {
+		return nil
+	}
+	reward := new(uint256.Int).Set(GurabaBlockReward)
+	reward.Rsh(reward, uint(era))
+	return reward
+}
+
 // Finalize implements consensus.Engine and processes withdrawals on top.
 func (beacon *Beacon) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state vm.StateDB, body *types.Body) {
 	if !beacon.IsPoSHeader(header) {
 		beacon.ethone.Finalize(chain, header, state, body)
 		return
+	}
+	// Guraba block reward: mint new GRB to fee_recipient (validator)
+	if chain.Config().ChainID.Cmp(GurabaChainID) == 0 {
+		if reward := calculateGurabaReward(header.Number.Uint64()); reward != nil {
+			state.AddBalance(header.Coinbase, reward, tracing.BalanceIncreaseRewardMineBlock)
+		}
 	}
 	// Withdrawals processing.
 	for _, w := range body.Withdrawals {
@@ -338,7 +365,6 @@ func (beacon *Beacon) Finalize(chain consensus.ChainHeaderReader, header *types.
 		amount = amount.Mul(amount, uint256.NewInt(params.GWei))
 		state.AddBalance(w.Address, amount, tracing.BalanceIncreaseWithdrawal)
 	}
-	// No block reward which is issued by consensus layer instead.
 }
 
 // FinalizeAndAssemble implements consensus.Engine, setting the final state and
